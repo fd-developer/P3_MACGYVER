@@ -6,173 +6,191 @@ from pygame.locals import *
 import json
 from random import *
 
-class Map():
-	def __init__(self):
-		global my_map, fenetre, img_sol, img_mur, img_mac, img_gardian, img_t1, img_t2, img_t3 
-		# Permet de rendre la fenêtre de taille ajustable.
-		fenetre = pygame.display.set_mode((480,645), RESIZABLE)
-		# On charge les images
-		img_sol = pygame.image.load("ressource/sol.png").convert_alpha()
-		img_mur = pygame.image.load("ressource/mur.png").convert_alpha()
+class Game:
 
-		img_mac = pygame.image.load("ressource/MacGyver.png").convert_alpha()
-		img_gardian = pygame.image.load("ressource/Gardien.png").convert_alpha()
-		img_t1 = pygame.image.load("ressource/seringue.png").convert_alpha()
-		img_t2 = pygame.image.load("ressource/tube_plastique.png").convert_alpha()
-		img_t3 = pygame.image.load("ressource/ether.png").convert_alpha()
+	GRID = {}
+	IMG_SOL = ""
+	IMG_MUR = ""
+	WIN = False
 
-		img_t1.set_colorkey((255,255,255)) #Rend le blanc (valeur RGB : 255,255,255) de l'image transparent
-		img_t2.set_colorkey((255,255,255)) #Rend le blanc (valeur RGB : 255,255,255) de l'image transparent
-		img_t3.set_colorkey((255,255,255)) #Rend le blanc (valeur RGB : 255,255,255) de l'image transparent
+	def __init__(self, map_file, img_sol, img_mur, img_congratulations, img_dead):
 
-		# Init de la carte
-		my_map = {}
-		my_map["nb_tools"] = 0
+		self.load_grid(map_file)
+		self.IMG_SOL = self.load_img(img_sol)
+		self.IMG_MUR = self.load_img(img_mur)
+		self.img_win = self.load_img(img_congratulations)
+		self.img_lost = self.load_img(img_dead)
 
-	def load_maze(self):
-		with open("maze.json") as f:
+	@classmethod
+	def load_img(cls,img):
+		return pygame.image.load(img).convert_alpha()
+
+	@classmethod
+	def load_grid(cls,map_file):
+		with open(map_file) as f:
 			data = json.load(f)
 			# load all the data contained in this file. data = entries
 			line = 0
 			for entry in data:
 				for colomn in range (0,15):
 					key = str(line)+","+str(colomn)
-					my_map[key] = entry["maze"][colomn:colomn+1]
+					cls.GRID[key] = entry["maze"][colomn:colomn+1]
 				
-					if my_map[key] == "S":
-						my_map["mac"] = key
+					if cls.GRID[key] == "S":
+						cls.GRID["mac"] = key
 
-					if my_map[key] == "E":
-						my_map["gardian"] = key
+					if cls.GRID[key] == "E":
+						cls.GRID["gardian"] = key
 
 				line = line+1
 
-	def display(self):
+	@property
+	def grid(self):
+		return(self.GRID)
+
+	def look_for_a_free_slot(self):
+		line = randint(0,14)
+		colomn = randint(0,14)
+		key = str(line)+","+str(colomn)
+		while(self.GRID[key]) != " ":
+			line = randint(0,14)
+			colomn = randint(0,14)
+			key = str(line)+","+str(colomn)
+		self.GRID[key] = "-"	
+		return key
+
+	def display(self,fenetre):
 		for line in range(0,15):
 			for colomn in range(0,15):
 				key = str(line)+","+str(colomn)
-				fenetre.blit(img_sol, (colomn*32, line*43))
+				fenetre.blit(self.IMG_SOL, (colomn*32, line*43))
 
-				if my_map[key] == "*":
-					fenetre.blit(img_mur, (colomn*32, line*43))
+				if self.GRID[key] == "*":
+					fenetre.blit(self.IMG_MUR, (colomn*32, line*43))
+	
+	def meet(self,obj1,obj2): # Lets find out if 2 objects are in the same place
+		end = False
+		if obj1.position == obj2.position:
+			end = True
+		else:
+			end = False
 
-				if my_map["1"] == key:
-					fenetre.blit(img_t1, (colomn*32, line*43))
+		if obj1.nb_tools == 3: # If Obj1 has 3 tools then we consider that it has won against Obj2
+			self.WIN = True
 		
-				if my_map["2"] == key:
-					fenetre.blit(img_t2, (colomn*32, line*43))
+		return end
 
-				if my_map["3"] == key:
-					fenetre.blit(img_t3, (colomn*32, line*43))
 
-				if my_map[key] == "E":
-					fenetre.blit(img_gardian, (colomn*32, line*43))
+	def show_end_msg(self,fenetre): # Display a result message at the end of a game
+		if self.WIN:
+			fenetre.blit(self.img_win, (10, 10))
+		else:
+			fenetre.blit(self.img_lost, (10, 10))
 
-				if my_map["mac"] == key:
-					fenetre.blit(img_mac, (colomn*32, line*43))
+		
+class Object:
 
-class Character():
+	def __init__(self, img, position):
+		self.img = pygame.image.load(img).convert_alpha()
+		self.img.set_colorkey((255,255,255))
+		self.pos = position
+		self.nb_tools = 0
+		self.old_pos = ""
 
-	def move(self,hor,vert):
-		actualLine = my_map["mac"].split(",")[0]
-		actualcolomn = my_map["mac"].split(",")[1]
-		newline = int(actualLine) + int(vert)
-		newcolomn = int(actualcolomn) + int(hor)
-		newKey = str(newline)+","+str(newcolomn)
+	def move(self,grid,hor,vert): # Move an object
+		new_pos = str(int(self.pos.split(",")[0])+vert)+","+str(int(self.pos.split(",")[1])+hor)
+		if self.in_the_grid(new_pos):
+			if grid[new_pos] != "*":
+				self.old_pos = self.pos
+				self.pos = new_pos 
 
-		if not((newline<0) or (newline>14) or (newcolomn<0) or 
-			(newcolomn>14) or (my_map[newKey]=="*")):
-			my_map[my_map["mac"]] = " "
-			#if my_map["mac"] == my_map["S"]:
-			#	my_map[my_map["mac"]] = "S"
-			if my_map["mac"] == my_map["gardian"]:
-				my_map[my_map["mac"]] = "E"
-				
-			my_map["mac"] = newKey	
+	def Collect_tools(self,grid): # Collect an object (to call right after a move)
+		if grid[self.pos] == "-":
+			self.nb_tools += 1 
+			grid[self.pos] == " "
+			return True
+		return False
 
-	def catch_tool(self):
-		for i in range(1,4):
-			if my_map["mac"] == my_map[str(i)]:
-				my_map[str(i)] = " "
-				my_map["nb_tools"] = int(my_map["nb_tools"]) + 1
-				print(my_map["nb_tools"])
-
-	def kill_gardian(self):
-		if my_map["mac"] == my_map["gardian"]:
-			if my_map["nb_tools"] == 3:
-				print("You win !!")
-				return False
-			else:
-				print("You are dead")
-				return False
+	@classmethod
+	def in_the_grid(cls,position): # check if an object is on the grid of the game
+		i = int(position.split(",")[0])
+		j = int(position.split(",")[1]) 
+		if i<0 or i>14 or j<0 or j>14:
+			return False
 		return True
 
-class Tools():
-	image = ""
+	def display(self,fenetre,grid): # reset old position and diplay new position object
+		if self.old_pos!="":
+			fenetre.blit(grid.IMG_SOL, (int(self.old_pos.split(",")[1])*32, int(self.old_pos.split(",")[0])*43))
+		fenetre.blit(self.image, (int(self.pos.split(",")[1])*32, int(self.pos.split(",")[0])*43))
 
-	def __init__(self,tool_number,img):
-		x = randint(0,14)
-		y = randint(0,14)
-		key = str(x)+","+str(y)
-		while(my_map[key]) != " ":
-			x = randint(0,14)
-			y = randint(0,14)
-			key = str(x)+","+str(y)
-		my_map[str(tool_number)] = key
-		my_map[key] = str(tool_number)
-		image = pygame.image.load(img).convert_alpha()
-		print(str(tool_number)+" "+key)
+	@property
+	def image(self):
+		return self.img
 
-# Initialisation des modules de Pygame
-pygame.init()
-myClock = pygame.time.Clock()
+	@property
+	def position(self):
+		return self.pos
 
-map = Map()
-map.load_maze()
+def main():
+	pygame.init()
+	myClock = pygame.time.Clock()
+	fenetre = pygame.display.set_mode((480,645), RESIZABLE)
 
-mac = Character()
-guardian = Character()
-t1 = Tools(1,"ressource/seringue.png")
-t2 = Tools(2,"ressource/tube_plastique.png")
-t3 = Tools(3,"ressource/ether.png")
+	# We create the objects, load their images and their starting position
+	game = Game("maze.json","ressource/sol.png","ressource/mur.png","ressource/congratulations.png","ressource/dead.png")
+	gyver = Object("ressource/MacGyver.png", game.grid["mac"])
+	gardian = Object("ressource/Gardien.png", game.grid["gardian"])
+	t1 = Object("ressource/seringue.png", game.look_for_a_free_slot())
+	t2 = Object("ressource/tube_plastique.png", game.look_for_a_free_slot())
+	t3 = Object("ressource/ether.png", game.look_for_a_free_slot())
 
-map.display()
-pygame.display.flip()
+	# We display the objects of the game
+	game.display(fenetre)
+	gyver.display(fenetre,game)
+	gardian.display(fenetre,game)
+	t1.display(fenetre,game)
+	t2.display(fenetre,game)
+	t3.display(fenetre,game.GRID)
+	pygame.display.flip()
 
-continuer = True
-while continuer:
-	# Boucle sur tous les événements gérés par Pygame
-	for event in pygame.event.get():        
-		if event.type == QUIT or event.type == KEYDOWN and event.key == K_ESCAPE:
-			# La fenêtre a été fermée ou La touche ESC a été pressée.
-			continuer = False # Indique de sortir de la boucle.
-            
-		if event.type == KEYDOWN:  # KEYUP existe aussi
-			# Change les coordonnées de la position de la personne
-			if event.key == K_RIGHT: 
-				mac.move(1,0)
-				mac.catch_tool()
-				continuer = mac.kill_gardian()
-			if event.key == K_LEFT: 
-				mac.move(-1,0)
-				mac.catch_tool()
-				continuer = mac.kill_gardian()
-			if event.key == K_UP: 
-				mac.move(0,-1)
-				mac.catch_tool()
-				continuer = mac.kill_gardian()
-			if event.key == K_DOWN: 
-				mac.move(0,1)
-				mac.catch_tool()
-				continuer = mac.kill_gardian()
+	end_game = False
+	while not end_game:
+		# Loop on all events managed by Pygame
+		for event in pygame.event.get():        
+			if event.type == QUIT or event.type == KEYDOWN and event.key == K_ESCAPE or game.meet(gyver,gardian):
+				# The window has been closed or The ESC key has been pressed.
+				pygame.time.delay(3000) # wait 3 seconds before going out to display the WIN or LOST message
+				end_game = True # Indicates to exit the loop.
+	            
+			if event.type == KEYDOWN: 
+				# Change the coordinates of the position of the character
+				if event.key == K_RIGHT: 
+					gyver.move(game.GRID,1,0)
+					gyver.Collect_tools(game.GRID)
 
-			map.display()
-			pygame.display.flip()
+				elif event.key == K_LEFT: 
+					gyver.move(game.GRID,-1,0)
+					gyver.Collect_tools(game.GRID)
 
-	# Pour avoir un autorepeat si une touche est pressée.
-	pygame.key.set_repeat(10, 3) # répétition de la touche toutes les ... [ms]
-		
-	myClock.tick(60)
+				elif event.key == K_UP: 
+					gyver.move(game.GRID,0,-1)
+					gyver.Collect_tools(game.GRID)
 
-pygame.display.quit() # ferme la fenêtre, c.f. https://www.pygame.org/docs/ref/display.html
-pygame.quit() # quitte pygame, c.f. https://www.pygame.org/docs/ref/pygame.htmlv
+				elif event.key == K_DOWN: 
+					gyver.move(game.GRID,0,1)
+					gyver.Collect_tools(game.GRID)
+				
+				gyver.display(fenetre,game)
+
+				if game.meet(gyver,gardian):
+					game.show_end_msg(fenetre)
+					pygame.display.update()
+
+				myClock.tick(60)
+				pygame.display.flip()
+	
+	pygame.display.quit() # close the window
+	pygame.quit() # quit pygame and the game 
+
+main()
