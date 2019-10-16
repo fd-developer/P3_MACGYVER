@@ -104,7 +104,7 @@ class Object:
 				self.old_pos = self.pos
 				self.pos = new_pos 
 
-	def collect_tools(self,grid): # Collect an object (to call right after a move)
+	def Collect_tools(self,grid): # Collect an object (to call right after a move)
 		if grid[self.pos] == "-":
 			self.nb_tools += 1 
 			grid[self.pos] == " "
@@ -167,19 +167,19 @@ def main():
 				# Change the coordinates of the position of the character
 				if event.key == K_RIGHT: 
 					gyver.move(game.GRID,1,0)
-					gyver.collect_tools(game.GRID)
+					gyver.Collect_tools(game.GRID)
 
 				elif event.key == K_LEFT: 
 					gyver.move(game.GRID,-1,0)
-					gyver.collect_tools(game.GRID)
+					gyver.Collect_tools(game.GRID)
 
 				elif event.key == K_UP: 
 					gyver.move(game.GRID,0,-1)
-					gyver.collect_tools(game.GRID)
+					gyver.Collect_tools(game.GRID)
 
 				elif event.key == K_DOWN: 
 					gyver.move(game.GRID,0,1)
-					gyver.collect_tools(game.GRID)
+					gyver.Collect_tools(game.GRID)
 				
 				gyver.display(fenetre,game)
 
@@ -187,12 +187,9 @@ def main():
 					game.show_end_msg(fenetre)
 					pygame.display.update()
 
-					#end_game = True
-
 				myClock.tick(60)
 				pygame.display.flip()
 	
-	#pygame.time.delay(3000)
 	pygame.display.quit() # close the window
 	pygame.quit() # quit pygame and the game 
 
