@@ -1,7 +1,10 @@
 #! /usr/bin/env python3
 # coding: utf-8
 
-from game import *
+# Run this file to start the game
+from Game import *
 
 game = Game()
-game.start()
+play = True
+while play:
+	play = game.start()
