@@ -45,7 +45,6 @@ class Character(Object):
         if grid[cls.pos] == "-":
             cls.nb_tools += 1 
             grid[cls.pos] = " "
-            print("Nb tools ", cls.nb_tools)
 
     @classmethod
     def in_the_grid(cls, position):  # check if an object is on the grid of the game
