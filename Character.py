@@ -2,6 +2,7 @@ import pygame
 from pygame.locals import *
 from Object import *
 
+
 # Class in charge to manage objects as MacGyver, gardian, tools
 class Character(Object):
 
@@ -40,16 +41,17 @@ class Character(Object):
             if grid[new_pos] != "*":
                 cls.old_pos = cls.pos
                 cls.pos = new_pos 
-
-    def collect_tools(cls, grid):  # Collect an object (to call right after a move)
+    # Collect an object (to call right after a move)
+    def collect_tools(cls, grid):
         if grid[cls.pos] == "-":
-            cls.nb_tools += 1 
+            cls.nb_tools += 1
             grid[cls.pos] = " "
 
+    # check if an object is on the grid of the game
     @classmethod
-    def in_the_grid(cls, position):  # check if an object is on the grid of the game
+    def in_the_grid(cls, position):
         i = int(position.split(",")[0])
-        j = int(position.split(",")[1]) 
+        j = int(position.split(",")[1])
         if i < 0 or i > 14 or j < 0 or j > 14:
             return False
         return True
