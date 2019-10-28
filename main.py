@@ -7,4 +7,4 @@ from Game import *
 game = Game()
 play = True
 while play:
-	play = game.start()
+    play = game.start()
